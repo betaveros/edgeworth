@@ -10,6 +10,13 @@ sealed abstract class GridDecorator {
   def id: String
   def description: String
 }
+case object NoneDecorator extends GridDecorator {
+  def decorate(master: MasterSVG, grid: SimpleGrid, gridBounds: GridBounds): Unit = {
+    master.clearDecoration()
+  }
+  def id = "none"
+  def description = "None"
+}
 case object SolidDecorator extends GridDecorator {
   def decorate(master: MasterSVG, grid: SimpleGrid, gridBounds: GridBounds): Unit = {
     master.clearDecoration()
@@ -49,15 +56,17 @@ case object DotDecorator extends GridDecorator {
 }
 
 object GridDecorator {
-  def allDecorators = Seq(SolidDecorator, DashedDecorator, AllDashedDecorator, DotDecorator)
+  def allDecorators = Seq(NoneDecorator, SolidDecorator, DashedDecorator, AllDashedDecorator, DotDecorator)
   def default = SolidDecorator
   def encode(d: GridDecorator): String = d match {
+    case NoneDecorator => "n"
     case SolidDecorator => "s"
     case DashedDecorator => "d"
     case AllDashedDecorator => "a"
     case DotDecorator => "o"
   }
   def decode(s: StringIter): GridDecorator = s.next() match {
+    case Some('n') =>      NoneDecorator
     case Some('s') =>     SolidDecorator
     case Some('d') =>    DashedDecorator
     case Some('a') => AllDashedDecorator
