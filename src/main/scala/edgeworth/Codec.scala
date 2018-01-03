@@ -52,8 +52,8 @@ object Codec {
       if (queuedPuts > 1) {
         ret.append(Base64.intToChar(18))
         ret.append(Base64.encodeBase32(queuedPuts))
-      } else if (queuedPuts == 1) {
-        ret.append(Base64.intToChar(32)) // 0,0 quick
+      } else if (queuedPuts == 1 && lastPut < 16) {
+        ret.append(Base64.intToChar(32 + lastPut)) // quick
       }
       queuedPuts = 0
     }
