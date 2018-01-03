@@ -1,6 +1,7 @@
 package edgeworth
 
 import org.scalajs.dom
+import org.scalajs.dom.html
 import org.scalajs.dom.svg
 import dom.document
 
@@ -87,6 +88,11 @@ class MasterSVG(val svgElement: svg.SVG) {
     }
   }
 
+  def onKeyPress(handler: (dom.KeyboardEvent) => Unit) = {
+    // hack (usually SVG elements can't have stuff attached but we put
+    // tabindex on it so it can; but Scala doesn't know that)
+    svgElement.asInstanceOf[html.Element].onkeypress = handler
+  }
   def onClick(handler: (dom.MouseEvent) => Unit) = {
     svgElement.onclick = handler
   }

@@ -87,7 +87,7 @@ object Main {
     }
     val digitMap: Map[String, String] = Map((for (i <- 0 to 9) yield i.toString -> i.toString): _*)
 
-    document.onkeypress = (event) => {
+    masterSVG.onKeyPress((event) => {
       val cPrefix = if (event.ctrlKey) "C-" else ""
       val sPrefix = if (event.shiftKey) "S-" else ""
       val procKey = event.key match {
@@ -147,7 +147,7 @@ object Main {
       }
       // lift returns an Option[T] so that keys outside the partial function won't fail
       (moveReactions orElse basicDrawReactions orElse (digitMap andThen putTextAtCursor)).lift(event.key)
-    }
+    })
 
     def updateBoundsDecoration(): Unit = {
       val w = 16 + gridBounds.colCount * 32
