@@ -37,7 +37,7 @@ object Main {
     def clearEdgeContent(epos: EdgePosition) = putElements(epos, Seq())
     def clearIntersectionContent(ipos: IntersectionPosition) = putElements(ipos, Seq())
     def clearAll(): Unit = {
-      pcm.cellMap = Map()
+      pcm.clear()
       masterSVG.clearAllGs()
     }
     def putCellContent(cpos: CellPosition, cc: CellContent) = {
