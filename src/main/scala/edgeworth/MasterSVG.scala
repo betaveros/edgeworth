@@ -88,20 +88,34 @@ class MasterSVG(val svgElement: svg.SVG) {
     }
   }
 
+  // hacks (usually SVG elements can't have stuff attached or get focus, but
+  // we put tabindex on it so it can; but Scala doesn't know that)
   def onKeyPress(handler: (dom.KeyboardEvent) => Unit) = {
-    // hack (usually SVG elements can't have stuff attached but we put
-    // tabindex on it so it can; but Scala doesn't know that)
     svgElement.asInstanceOf[html.Element].onkeypress = handler
+  }
+  def focus(): Unit = {
+    svgElement.asInstanceOf[html.Element].focus()
   }
   def onClick(handler: (dom.MouseEvent) => Unit) = {
     svgElement.onclick = handler
   }
 
-  def userSpaceCoords(event: dom.MouseEvent): (Double, Double) = {
+
+  def userSpaceCoords(x: Double, y: Double): (Double, Double) = {
     val pt = svgElement.createSVGPoint()
-    pt.x = event.clientX
-    pt.y = event.clientY
+    pt.x = x
+    pt.y = y
     val cursorpt = pt.matrixTransform(svgElement.getScreenCTM().inverse())
+    (cursorpt.x, cursorpt.y)
+  }
+  def userSpaceCoords(event: dom.MouseEvent): (Double, Double) = {
+    userSpaceCoords(event.clientX, event.clientY)
+  }
+  def screenSpaceCoords(x: Double, y: Double): (Double, Double) = {
+    val pt = svgElement.createSVGPoint()
+    pt.x = x
+    pt.y = y
+    val cursorpt = pt.matrixTransform(svgElement.getScreenCTM())
     (cursorpt.x, cursorpt.y)
   }
 }

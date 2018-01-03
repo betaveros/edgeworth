@@ -87,6 +87,28 @@ object Main {
     }
     val digitMap: Map[String, String] = Map((for (i <- 0 to 9) yield i.toString -> i.toString): _*)
 
+    val textInput = document.createElement("input").asInstanceOf[html.Input]
+    textInput.setAttribute("type", "text")
+    textInput.style.fontSize = "20pt"
+    textInput.style.width = "1em"
+    textInput.style.textAlign = "center"
+    textInput.style.display = "none"
+    textInput.style.opacity = "0.8"
+    document.getElementById("svgwrap").appendChild(textInput)
+    textInput.onkeydown = (event) => {
+      if (event.key == "Enter") {
+        event.preventDefault()
+        putTextAtCursor(textInput.value)
+        textInput.style.display = "none"
+        masterSVG.focus()
+      }
+    }
+    textInput.onblur = (event) => {
+      putTextAtCursor(textInput.value)
+      textInput.style.display = "none"
+      masterSVG.focus()
+    }
+
     masterSVG.onKeyPress((event) => {
       val cPrefix = if (event.ctrlKey) "C-" else ""
       val sPrefix = if (event.shiftKey) "S-" else ""
@@ -142,6 +164,21 @@ object Main {
           case Some(p: CellPosition) => putCellContent(p, CellContent(Color.pencil, CrossCellStamp))
           case Some(p: EdgePosition) => putEdgeContent(p, EdgeContent(Color.pencil, CrossEdgeStamp))
           case Some(p: IntersectionPosition) => putIntersectionContent(p, IntersectionContent(Color.pencil, CrossIntersectionStamp))
+          case _ => ()
+        }
+        case "=" => cursor.selected match {
+          case Some(p: CellPosition) => {
+            event.preventDefault()
+            textInput.style.display = "inline"
+            textInput.style.position = "fixed"
+            textInput.style.transform = "translate(-50%, -50%)"
+            val (ux, uy) = grid.computePositionCenter(p)
+            val (x, y) = masterSVG.screenSpaceCoords(ux, uy)
+            textInput.style.left = x.toString ++ "px"
+            textInput.style.top = y.toString ++ "px"
+            textInput.value = ""
+            textInput.focus()
+          }
           case _ => ()
         }
       }
