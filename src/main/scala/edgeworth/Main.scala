@@ -163,12 +163,18 @@ object Main {
       updateDecoration()
     }
     val hashStr = document.location.hash
-    if (hashStr.length > 0) {
-      // cut off the '#'
-      val (dec, gb0, pcm0) = Codec.decode(hashStr.tail)
-      load(dec, gb0, pcm0)
-    } else {
-      load(SolidDecorator, GridBounds(10, 10), new PositionContentMap())
+    def loadHashStr(hashStr: String) = {
+      if (hashStr.length > 0) {
+        // cut off the '#'
+        val (dec, gb0, pcm0) = Codec.decode(hashStr.tail)
+        load(dec, gb0, pcm0)
+      } else {
+        load(SolidDecorator, GridBounds(10, 10), new PositionContentMap())
+      }
+    }
+    loadHashStr(document.location.hash)
+    dom.window.onhashchange = (event) => {
+      loadHashStr(document.location.hash)
     }
 
     val encodeButton = document.createElement("button").asInstanceOf[html.Button]
