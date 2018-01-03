@@ -9,6 +9,13 @@ class MasterSVG(val svgElement: svg.SVG) {
   def append(e: svg.Element): Unit = {
     svgElement.appendChild(e)
   }
+  def setScreenSize(w: Double, h: Double) = {
+    svgElement.setAttribute("width", w.toString)
+    svgElement.setAttribute("height", h.toString)
+  }
+  def setViewBox(x: Double, y: Double, w: Double, h: Double) = {
+    svgElement.setAttribute("viewBox", Seq(x, y, w, h).mkString(" "))
+  }
   def newG(): svg.G = {
     val g = SVGUtil.g()
     append(g)

@@ -145,7 +145,12 @@ object Main {
       (moveReactions orElse basicDrawReactions orElse (digitMap andThen putTextAtCursor)).lift(event.key)
     }
 
-    def updateDecoration(): Unit = {
+    def updateBoundsDecoration(): Unit = {
+      val w = 16 + gridBounds.colCount * 32
+      val h = 16 + gridBounds.rowCount * 32
+      masterSVG.setViewBox(-8, -8, w, h)
+      val scale = 500.0 / (w max h)
+      masterSVG.setScreenSize(w * scale, h * scale)
       decorator.decorate(masterSVG, grid, gridBounds)
     }
     def load(dec: GridDecorator, gb: GridBounds, pcm0: PositionContentMap) = {
@@ -160,7 +165,7 @@ object Main {
       for ((p, c) <- pcm0.intersectionMap) {
         putIntersectionContent(p, c)
       }
-      updateDecoration()
+      updateBoundsDecoration()
     }
     val hashStr = document.location.hash
     def loadHashStr(hashStr: String) = {
@@ -214,7 +219,7 @@ object Main {
       rb.setAttribute("id", id)
       rb.onchange = (event) => {
         decorator = d
-        updateDecoration()
+        updateBoundsDecoration()
       }
       decdiv.appendChild(rb)
       val lb = document.createElement("label")
