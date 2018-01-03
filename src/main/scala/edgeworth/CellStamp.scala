@@ -41,13 +41,28 @@ case class TextCellStamp(text: String) extends CellStamp {
     Seq(SVGUtil.text(x, y, text, fontSize.toString + "pt"))
   }
 }
+sealed abstract class ArrowCellStamp(dx: Int, dy: Int) extends CellStamp {
+  def renderCell(grid: SimpleGrid, cpos: CellPosition, color: Color) = {
+    val (x, y) = grid.computePositionCenter(cpos)
+    SVGUtil.arrow(x, y, dx * grid.fourth, dy * grid.fourth, 4, color.toStyle)
+  }
+}
+case object    UpArrowCellStamp extends ArrowCellStamp( 0, -1)
+case object  DownArrowCellStamp extends ArrowCellStamp( 0,  1)
+case object  LeftArrowCellStamp extends ArrowCellStamp(-1,  0)
+case object RightArrowCellStamp extends ArrowCellStamp( 1,  0)
+
 object CellStamp {
   def encode(stamp: CellStamp): String = stamp match {
     // cannot use "c" because that's for color
-    case FillCellStamp => "f"
-    case DotCellStamp => "d"
-    case CrossCellStamp => "x"
-    case CircleCellStamp => "o"
+    case       FillCellStamp => "f"
+    case        DotCellStamp => "d"
+    case      CrossCellStamp => "x"
+    case     CircleCellStamp => "o"
+    case    UpArrowCellStamp => "au"
+    case  DownArrowCellStamp => "ad"
+    case  LeftArrowCellStamp => "al"
+    case RightArrowCellStamp => "ar"
     case TextCellStamp(s) => TextCodec.directEncode(s) match {
       case Some(x) => (if (TextCodec.hasSafeHead(x)) "" else "t") ++ x
       case None => throw new AssertionError("Can't encode arbitrary text yet, sorry!")
@@ -58,6 +73,20 @@ object CellStamp {
     case Some('d') => Some(   DotCellStamp)
     case Some('x') => Some( CrossCellStamp)
     case Some('o') => Some(CircleCellStamp)
+    case Some('a') => s.next() match {
+      case Some('u') => Some(   UpArrowCellStamp)
+      case Some('d') => Some( DownArrowCellStamp)
+      case Some('l') => Some( LeftArrowCellStamp)
+      case Some('r') => Some(RightArrowCellStamp)
+      case Some(c) => {
+        Out.warn("Cell stamp: Unrecognized arrow direction: " ++ c.toString)
+        None
+      }
+      case None => {
+        Out.warn("Cell stamp: premature end at arrow")
+        None
+      }
+    }
     case Some('t') => Some(TextCellStamp(TextCodec.directDecode(s)))
     case Some(c) if TextCodec.upperOrDigit(c) => Some(TextCellStamp(c.toString))
     case Some('.') => None

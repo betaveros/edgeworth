@@ -9,6 +9,7 @@ case class SimpleGrid(rowHeight: Double, colWidth: Double, xOffset: Double = 0.0
   def computeCenterX(col: Int): Double = xOffset + (col + 0.5) * colWidth
   def computeCenterY(row: Int): Double = yOffset + (row + 0.5) * rowHeight
 
+  def fourth: Double = (colWidth min rowHeight) / 4
   def eighth: Double = (colWidth min rowHeight) / 8
 
   def computeXBounds(col: Int): (Double, Double) =

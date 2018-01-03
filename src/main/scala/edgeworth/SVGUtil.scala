@@ -70,4 +70,21 @@ object SVGUtil {
     path.style.strokeLinecap = "square"
     path
   }
+  def arrow(cx: Double, cy: Double, dx: Double, dy: Double, strokeWidth: Double, stroke: String = "#111"): Seq[svg.Path] = {
+    val path1 = SVGUtil.path()
+    path1.setAttribute("d", s"M${cx-dx},${cy-dy}L${cx},${cy}M${cx-dy},${cy+dx}L${cx+dx},${cy+dy}L${cx+dy},${cy-dx}")
+    path1.style.stroke = stroke
+    path1.style.fill = "transparent"
+    path1.style.strokeWidth = strokeWidth.toString
+    path1.style.strokeLinecap = "square"
+
+    val path2 = SVGUtil.path()
+    path2.setAttribute("d", s"M${cx},${cy}L${cx+dx},${cy+dy}")
+    path2.style.stroke = stroke
+    path1.style.fill = "transparent"
+    path2.style.strokeWidth = strokeWidth.toString
+    path2.style.strokeLinecap = "round"
+
+    Seq(path1, path2)
+  }
 }
