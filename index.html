@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<meta charset="UTF-8">
+		<title>Edgeworth</title>
+		<style>
+			#wrap { max-width: 48em; margin: 0 auto; }
+			#svge { display: block; margin: 0 auto; }
+		</style>
+	</head>
+	<body>
+		<div id="wrap">
+		<h1><code>edgeworth</code></h1>
+		<p>Nothing really works yet, but try moving around with hjkl/arrow keys and entering things with f, x, Space</p>
+		<svg id="svge" width="500" height="500" viewBox="-8 -8 336 336" version="1.1" xmlns="http://www.w3.org/2000/svg">
+			<defs>
+			<linearGradient id="cursor-gradient" spreadMethod="reflect" x1="0" y1="0" x2="0.5" y2="0.5">
+			<stop offset="0%" stop-color="#0f0"/>
+			<stop offset="100%" stop-color="#080"/>
+			</linearGradient>
+			</defs>
+		</svg>
+		</div>
+		<script type="text/javascript" src="./target/scala-2.12/edgeworth-fastopt.js"></script>
+	</body>
+</html>
