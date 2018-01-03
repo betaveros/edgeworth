@@ -26,6 +26,7 @@ import org.scalajs.dom
 // - i = 0 to 15 (A to P): Set mode or something. Reserved ish for now.
 // - i == 16: Insert content specified by base 32; 32+j are continuation bytes.
 // - i == 17: Long skip (read + 1) * max(1, lo // n).
+// - i == 18: Repeat last-placed content (read base-32) times.
 // - 32 <= i < 48: Skip (i // n) cells, place content (i % n).
 // - 48 <= i < 64: Long skip ((j + 1) * max(1, lo // n))
 
@@ -44,21 +45,39 @@ object Codec {
   }
   def encodePart(len: Int, seq: Iterable[(Int, Int)]): String = {
     val longSkipLength = 1 max (16 / len)
+    var lastPut: Int = 0
+    var queuedPuts: Int = 0
     val ret = new StringBuffer()
-    for ((dist, index) <- seq) yield {
-      val longSkipAmount = dist / longSkipLength
-      if (longSkipAmount >= 16) {
-        ret.append(Base64.intToChar(17) + Base64.encodeBase32(longSkipAmount - 1))
-      } else if (longSkipAmount > 0) {
-        ret.append(Base64.intToChar(48 + longSkipAmount - 1))
+    def flushQueued(): Unit = {
+      if (queuedPuts > 1) {
+        ret.append(Base64.intToChar(18))
+        ret.append(Base64.encodeBase32(queuedPuts))
+      } else if (queuedPuts == 1) {
+        ret.append(Base64.intToChar(32)) // 0,0 quick
       }
-      val quick = dist % longSkipLength * len + index
-      if (quick >= 16) {
-        ret.append(Base64.intToChar(16) + Base64.encodeBase32(quick))
+      queuedPuts = 0
+    }
+    for ((dist, index) <- seq) {
+      if (dist == 0 && lastPut == index) {
+        queuedPuts += 1
       } else {
-        ret.append(Base64.intToChar(32 + quick))
+        flushQueued()
+        val longSkipAmount = dist / longSkipLength
+        if (longSkipAmount >= 16) {
+          ret.append(Base64.intToChar(17) + Base64.encodeBase32(longSkipAmount - 1))
+        } else if (longSkipAmount > 0) {
+          ret.append(Base64.intToChar(48 + longSkipAmount - 1))
+        }
+        val quick = dist % longSkipLength * len + index
+        if (quick >= 16) {
+          ret.append(Base64.intToChar(16) + Base64.encodeBase32(quick))
+        } else {
+          ret.append(Base64.intToChar(32 + quick))
+        }
+        lastPut = index
       }
     }
+    flushQueued()
     ret.toString
   }
   def optWrap(p: String, e: String, s: String) = if (s == "") "" else p ++ s ++ e
@@ -193,6 +212,7 @@ object Codec {
         s.back()
         Out.log("Starting VM")
         var position: Position = CellPosition(0, 0)
+        var lastPut: Int = 0
         def currentContentLength(): Int = position match {
           case cpos: CellPosition => cellContents.length
           case epos: EdgePosition => edgeContents.length
@@ -209,6 +229,7 @@ object Codec {
             case epos: EdgePosition => map.putEdgeContent(epos, edgeContents(index))
             case ipos: IntersectionPosition => map.putIntersectionContent(ipos, intersectionContents(index))
           }
+          lastPut = index
           skip(1)
         }
 
@@ -244,21 +265,26 @@ object Codec {
             case 0 => {
               Out.log("VM to cells")
               position = CellPosition(0, 0)
+              lastPut = 0
             }
             case 1 => {
               Out.log("VM to horizontal edges")
               position = EdgePosition(0, 0, Horizontal)
+              lastPut = 0
             }
             case 2 => {
               Out.log("VM to vertical edges")
               position = EdgePosition(0, 0, Vertical)
+              lastPut = 0
             }
             case 3 => {
               Out.log("VM to intersections")
               position = IntersectionPosition(0, 0)
+              lastPut = 0
             }
             case 16 => put(readBase32())
             case 17 => skipLong(readBase32() + 1)
+            case 18 => for (i <- 0 until readBase32()) put(lastPut)
             case _ => Out.warn("in 'VM' cannot parse " ++ instruction.toString)
           }
           ch = s.next()
