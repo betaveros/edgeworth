@@ -89,11 +89,9 @@ object Main {
 
     val textInput = document.createElement("input").asInstanceOf[html.Input]
     textInput.setAttribute("type", "text")
-    textInput.style.fontSize = "20pt"
-    textInput.style.width = "1em"
-    textInput.style.textAlign = "center"
+    textInput.setAttribute("class", "cell")
+    textInput.style.fontSize = "22pt"
     textInput.style.display = "none"
-    textInput.style.opacity = "0.8"
     document.getElementById("svgwrap").appendChild(textInput)
     textInput.onkeydown = (event) => {
       if (event.key == "Enter") {
@@ -170,8 +168,6 @@ object Main {
           case Some(p: CellPosition) => {
             event.preventDefault()
             textInput.style.display = "inline"
-            textInput.style.position = "fixed"
-            textInput.style.transform = "translate(-50%, -50%)"
             val (ux, uy) = grid.computePositionCenter(p)
             val (x, y) = masterSVG.screenSpaceCoords(ux, uy)
             textInput.style.left = x.toString ++ "px"
