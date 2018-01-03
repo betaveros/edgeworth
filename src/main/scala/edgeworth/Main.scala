@@ -226,6 +226,7 @@ object Main {
 
     def makeButton(text: String, handler: dom.Event => Unit) = {
       val button = document.createElement("button").asInstanceOf[html.Button]
+      button.setAttribute("class", "btn")
       button.textContent = text
       button.onclick = handler
       button
