@@ -72,6 +72,7 @@ class MasterSVG(val svgElement: svg.SVG) {
 
   var gmap: Map[Position, svg.G] = Map[Position, svg.G]()
 
+  def clearAllGs(): Unit = for (g <- gmap.values) SVGUtil.clear(g)
   def getClearG(pos: Position) = gmap get pos match {
     case Some(g) => SVGUtil.clear(g)
     case None => {

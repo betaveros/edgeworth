@@ -14,4 +14,9 @@ class PositionContentMap(
   def putIntersectionContent(ipos: IntersectionPosition, ic: IntersectionContent) = {
     intersectionMap += ipos -> ic
   }
+  def clear() = {
+    cellMap = Map()
+    edgeMap = Map()
+    intersectionMap = Map()
+  }
 }

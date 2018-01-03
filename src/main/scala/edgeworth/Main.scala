@@ -36,6 +36,10 @@ object Main {
     def clearCellContent(cpos: CellPosition) = putElements(cpos, Seq())
     def clearEdgeContent(epos: EdgePosition) = putElements(epos, Seq())
     def clearIntersectionContent(ipos: IntersectionPosition) = putElements(ipos, Seq())
+    def clearAll(): Unit = {
+      pcm.cellMap = Map()
+      masterSVG.clearAllGs()
+    }
     def putCellContent(cpos: CellPosition, cc: CellContent) = {
       pcm.putCellContent(cpos, cc)
       putElements(cpos, cc.render(grid, cpos))
@@ -156,6 +160,7 @@ object Main {
     def load(dec: GridDecorator, gb: GridBounds, pcm0: PositionContentMap) = {
       decorator = dec
       gridBounds = gb
+      clearAll()
       for ((p, c) <- pcm0.cellMap) {
         putCellContent(p, c)
       }
@@ -182,33 +187,35 @@ object Main {
       loadHashStr(document.location.hash)
     }
 
-    val encodeButton = document.createElement("button").asInstanceOf[html.Button]
-    encodeButton.textContent = "encode"
-    val setUrlEncodedButton = document.createElement("button").asInstanceOf[html.Button]
-    setUrlEncodedButton.textContent = "set URL to encoded"
-    val decodeButton = document.createElement("button").asInstanceOf[html.Button]
-    decodeButton.textContent = "decode"
+    def makeButton(text: String, handler: dom.Event => Unit) = {
+      val button = document.createElement("button").asInstanceOf[html.Button]
+      button.textContent = text
+      button.onclick = handler
+      button
+    }
+
     val textarea = document.createElement("textarea").asInstanceOf[html.TextArea]
+    val clearButton = makeButton("Clear", (event) => clearAll())
+    val encodeButton = makeButton("Encode", (event) => {
+      textarea.textContent = Codec.encode(decorator, gridBounds, pcm)
+    })
+    val setUrlEncodedButton = makeButton("Set URL to encoded", (event) => {
+      document.location.hash = "#" ++ Codec.encode(decorator, gridBounds, pcm)
+    })
+    val decodeButton = makeButton("Decode", (event) => {
+      val (dec, gb0, pcm0) = Codec.decode(textarea.value)
+      load(dec, gb0, pcm0)
+    })
 
     val wrapper = document.getElementById("wrap")
 
     val div = document.createElement("div")
+    div.appendChild(clearButton)
     div.appendChild(encodeButton)
     div.appendChild(setUrlEncodedButton)
     div.appendChild(decodeButton)
     div.appendChild(textarea)
     wrapper.appendChild(div)
-
-    encodeButton.onclick = (event) => {
-      textarea.textContent = Codec.encode(decorator, gridBounds, pcm)
-    }
-    setUrlEncodedButton.onclick = (event) => {
-      document.location.hash = "#" ++ Codec.encode(decorator, gridBounds, pcm)
-    }
-    decodeButton.onclick = (event) => {
-      val (dec, gb0, pcm0) = Codec.decode(textarea.value)
-      load(dec, gb0, pcm0)
-    }
 
     val decdiv = document.createElement("div")
     for (d <- GridDecorator.allDecorators) {
