@@ -21,9 +21,25 @@ object Main {
     cursorElt.style.strokeOpacity = "0.75"
     masterSVG.append(cursorElt)
 
+    var lockFunction: Position => Position = identity[Position]
+    var lockMultiplier: Int = 1
+
+    def ensureLockAndUpdate() {
+      cursor.selected = cursor.selected map lockFunction
+      cursorElt.setAttribute("d", cursor.computePath(grid))
+    }
+    def setLockFunctionMultiplier(f: Position => Position, m: Int) = {
+      lockFunction = f
+      lockMultiplier = m
+      ensureLockAndUpdate()
+    }
+
     def move(rd: Int, cd: Int) = {
       cursor.moveSelected(rd, cd)
-      cursorElt.setAttribute("d", cursor.computePath(grid))
+      ensureLockAndUpdate()
+    }
+    def moveWithMultiplier(rd: Int, cd: Int) = {
+      move(rd * lockMultiplier, cd * lockMultiplier)
     }
 
     var decorator: GridDecorator = SolidDecorator
@@ -79,7 +95,7 @@ object Main {
           case _ => throw new AssertionError("moveAndDrawSelected failed!")
         }
       })
-      cursorElt.setAttribute("d", cursor.computePath(grid))
+      ensureLockAndUpdate()
     }
     def putTextAtCursor(s: String) = cursor.selected match {
       case Some(p@CellPosition(row, col)) => putCellContent(p, CellContent(Color.pencil, TextCellStamp(s)))
@@ -118,10 +134,10 @@ object Main {
         case _ => event.key
       }
       val moveReactions: PartialFunction[String, Unit] = (s) => s match {
-        case "k" | "Up"    => move(-1, 0)
-        case "j" | "Down"  => move(1, 0)
-        case "h" | "Left"  => move(0, -1)
-        case "l" | "Right" => move(0, 1)
+        case "k" | "Up"    => moveWithMultiplier(-1, 0)
+        case "j" | "Down"  => moveWithMultiplier(1, 0)
+        case "h" | "Left"  => moveWithMultiplier(0, -1)
+        case "l" | "Right" => moveWithMultiplier(0, 1)
         case "K" | "S-Up"    => moveAndDraw(-1, 0)
         case "J" | "S-Down"  => moveAndDraw(1, 0)
         case "H" | "S-Left"  => moveAndDraw(0, -1)
@@ -270,10 +286,31 @@ object Main {
     }
     wrapper.appendChild(decdiv)
 
+    val lockdiv = document.createElement("div")
+    lockdiv.appendChild(document.createTextNode("Lock cursor to:"))
+    val locks: Seq[(String, Position => Position, Int)] = Seq(
+      ("none", identity[Position], 1),
+      ("cells", _.roundToCell, 2),
+      ("intersections", _.roundToIntersection, 2))
+    for ((s, f, m) <- locks) {
+      val rb = document.createElement("input").asInstanceOf[html.Input]
+      val id = "lock-" ++ s
+      rb.setAttribute("type", "radio")
+      rb.setAttribute("name", "decoration")
+      rb.setAttribute("id", id)
+      rb.onchange = (event) => setLockFunctionMultiplier(f, m)
+      lockdiv.appendChild(rb)
+      val lb = document.createElement("label")
+      lb.setAttribute("for", id)
+      lb.textContent = s
+      lockdiv.appendChild(lb)
+    }
+    wrapper.appendChild(lockdiv)
+
     masterSVG.onClick((event) => {
       val (x, y) = masterSVG.userSpaceCoords(event)
       cursor.selected = Some(grid.computePosition(x, y))
-      cursorElt.setAttribute("d", cursor.computePath(grid))
+      ensureLockAndUpdate()
     })
   }
 }
