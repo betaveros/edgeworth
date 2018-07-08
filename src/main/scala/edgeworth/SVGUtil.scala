@@ -62,29 +62,26 @@ object SVGUtil {
   def path(): svg.Path = {
     create("path").asInstanceOf[svg.Path]
   }
-  def x(x1: Double, y1: Double, x2: Double, y2: Double, strokeWidth: Double, stroke: String = "#111"): svg.Path = {
+  def dPath(d: String, strokeWidth: Double, stroke: String, strokeLinecap: String): svg.Path = {
     val path = SVGUtil.path()
-    path.setAttribute("d", s"M${x1},${y1}L${x2},${y2}M${x1},${y2}L${x2},${y1}")
+    path.setAttribute("d", d)
     path.style.stroke = stroke
+    path.style.fill = "transparent"
     path.style.strokeWidth = strokeWidth.toString
-    path.style.strokeLinecap = "square"
+    path.style.strokeLinecap = strokeLinecap
     path
   }
+  def dSquarePath(d: String, strokeWidth: Double, stroke: String) = dPath(d, strokeWidth, stroke, "square")
+  def dRoundPath(d: String, strokeWidth: Double, stroke: String) = dPath(d, strokeWidth, stroke, "round")
+  def x(x1: Double, y1: Double, x2: Double, y2: Double, strokeWidth: Double, stroke: String = "#111"): svg.Path = {
+    dSquarePath(s"M${x1},${y1}L${x2},${y2}M${x1},${y2}L${x2},${y1}", strokeWidth, stroke)
+  }
+  def plus(x0: Double, y0: Double, dx: Double, dy: Double, strokeWidth: Double, stroke: String = "#111"): svg.Path = {
+    dSquarePath(s"M${x0-dx},${y0}L${x0+dx},${y0}M${x0},${y0-dy}L${x0},${y0+dy}", strokeWidth, stroke)
+  }
   def arrow(cx: Double, cy: Double, dx: Double, dy: Double, strokeWidth: Double, stroke: String = "#111"): Seq[svg.Path] = {
-    val path1 = SVGUtil.path()
-    path1.setAttribute("d", s"M${cx-dx},${cy-dy}L${cx},${cy}M${cx-dy},${cy+dx}L${cx+dx},${cy+dy}L${cx+dy},${cy-dx}")
-    path1.style.stroke = stroke
-    path1.style.fill = "transparent"
-    path1.style.strokeWidth = strokeWidth.toString
-    path1.style.strokeLinecap = "square"
-
-    val path2 = SVGUtil.path()
-    path2.setAttribute("d", s"M${cx},${cy}L${cx+dx},${cy+dy}")
-    path2.style.stroke = stroke
-    path1.style.fill = "transparent"
-    path2.style.strokeWidth = strokeWidth.toString
-    path2.style.strokeLinecap = "round"
-
+    val path1 = dSquarePath(s"M${cx-dx},${cy-dy}L${cx},${cy}M${cx-dy},${cy+dx}L${cx+dx},${cy+dy}L${cx+dy},${cy-dx}", strokeWidth, stroke)
+    val path2 = dRoundPath(s"M${cx},${cy}L${cx+dx},${cy+dy}", strokeWidth, stroke)
     Seq(path1, path2)
   }
 

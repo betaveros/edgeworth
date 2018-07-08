@@ -109,8 +109,16 @@ object Main {
       })
       ensureLockAndUpdate()
     }
+    def textToCellStamp(s: String) = s match {
+      case "-^" =>    UpArrowCellStamp
+      case "-v" =>  DownArrowCellStamp
+      case "<-" =>  LeftArrowCellStamp
+      case "->" => RightArrowCellStamp
+
+      case _    => TextCellStamp(s)
+    }
     def putTextAtCursor(s: String) = cursor.selected match {
-      case Some(p@CellPosition(row, col)) => putCellContent(p, CellContent(Color.pencil, TextCellStamp(s)))
+      case Some(p@CellPosition(row, col)) => putCellContent(p, CellContent(Color.pencil, textToCellStamp(s)))
       case _ => ()
     }
     val digitMap: Map[String, String] = Map((for (i <- 0 to 9) yield i.toString -> i.toString): _*)
@@ -205,6 +213,22 @@ object Main {
           case Some(p: CellPosition) => putCellContent(p, CellContent(Color.pencil, CrossCellStamp))
           case Some(p: EdgePosition) => putEdgeContent(p, EdgeContent(Color.pencil, CrossEdgeStamp))
           case Some(p: IntersectionPosition) => putIntersectionContent(p, IntersectionContent(Color.pencil, CrossIntersectionStamp))
+          case _ => ()
+        }
+        case "-" => cursor.selected match {
+          case Some(p: CellPosition) => putCellContent(p, CellContent(Color.pencil, HorizontalLineCellStamp))
+          case _ => ()
+        }
+        case "|" => cursor.selected match {
+          case Some(p: CellPosition) => putCellContent(p, CellContent(Color.pencil, VerticalLineCellStamp))
+          case _ => ()
+        }
+        case "/" => cursor.selected match {
+          case Some(p: CellPosition) => putCellContent(p, CellContent(Color.pencil, ForwardSlashLineCellStamp))
+          case _ => ()
+        }
+        case "\\" => cursor.selected match {
+          case Some(p: CellPosition) => putCellContent(p, CellContent(Color.pencil, BackwardSlashLineCellStamp))
           case _ => ()
         }
         case "=" => cursor.selected match {
