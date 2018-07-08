@@ -16,7 +16,7 @@ object Main {
     cursorElt.setAttribute("d", cursor.computePath(grid))
     masterSVG.append(cursorElt)
 
-    val statusSpan = document.createElement("span")
+    val statusSpan = document.getElementById("status-span")
     statusSpan.textContent = "Hello!"
 
     var lockFunction: Position => Position = identity[Position]
@@ -58,6 +58,11 @@ object Main {
     def clearCellContent(cpos: CellPosition) = putElements(currentZ, cpos, Seq())
     def clearEdgeContent(epos: EdgePosition) = putElements(currentZ, epos, Seq())
     def clearIntersectionContent(ipos: IntersectionPosition) = putElements(currentZ, ipos, Seq())
+    def clearCurrent(): Unit = {
+      currentPCM.clear()
+      masterSVG.clearGs(currentZ)
+      updateStatus()
+    }
     def clearAll(): Unit = {
       pcmSeq foreach { _.clear() }
       masterSVG.clearAllGs()
@@ -130,6 +135,8 @@ object Main {
       masterSVG.focus()
     }
 
+    val command = document.getElementById("command").asInstanceOf[html.Input]
+
     masterSVG.onKeyPress((event) => {
       val cPrefix = if (event.ctrlKey) "C-" else ""
       val sPrefix = if (event.shiftKey) "S-" else ""
@@ -151,6 +158,7 @@ object Main {
         case "L" | "S-Right" => moveAndDraw(0, 1)
       }
       val metaReactions: PartialFunction[String, Unit] = (s) => s match {
+        case ":" => command.focus()
         case "[" => {
           currentPCMIndex -= 1
           if (currentPCMIndex < 0) currentPCMIndex = pcmSeq.length - 1
@@ -201,7 +209,6 @@ object Main {
         }
         case "=" => cursor.selected match {
           case Some(p: CellPosition) => {
-            event.preventDefault()
             textInput.style.display = "inline"
             val (ux, uy) = grid.computePositionCenter(p)
             val (x, y) = masterSVG.screenSpaceCoords(ux, uy)
@@ -215,7 +222,10 @@ object Main {
       }
       Out.log(event.key)
       // lift returns an Option[T] so that keys outside the partial function won't fail
-      (moveReactions orElse basicDrawReactions orElse metaReactions orElse (digitMap andThen putTextAtCursor)).lift(event.key)
+      (moveReactions orElse basicDrawReactions orElse metaReactions orElse (digitMap andThen putTextAtCursor)).lift(event.key) match {
+        case Some(()) => event.preventDefault()
+        case None => ()
+      }
     })
 
     def updateBoundsDecoration(): Unit = {
@@ -281,11 +291,7 @@ object Main {
       load(Codec.decode(textarea.value))
     })
 
-    val wrapper = document.getElementById("wrap")
-
-    val sdiv = document.createElement("div")
-    sdiv.appendChild(statusSpan)
-    wrapper.appendChild(sdiv)
+    val modal = document.getElementById("modal-body")
 
     val div = document.createElement("div")
     div.appendChild(clearButton)
@@ -293,7 +299,7 @@ object Main {
     div.appendChild(setUrlEncodedButton)
     div.appendChild(decodeButton)
     div.appendChild(textarea)
-    wrapper.appendChild(div)
+    modal.appendChild(div)
 
     val decdiv = document.createElement("div")
     for (d <- GridDecorator.allDecorators) {
@@ -312,7 +318,7 @@ object Main {
       lb.textContent = d.description
       decdiv.appendChild(lb)
     }
-    wrapper.appendChild(decdiv)
+    modal.appendChild(decdiv)
 
     val lockdiv = document.createElement("div")
     lockdiv.appendChild(document.createTextNode("Lock cursor to:"))
@@ -333,30 +339,60 @@ object Main {
       lb.textContent = s
       lockdiv.appendChild(lb)
     }
-    wrapper.appendChild(lockdiv)
+    modal.appendChild(lockdiv)
+
+    def addPCM(): Unit = {
+      pcmSeq :+= new PositionContentMap()
+      currentPCMIndex = pcmSeq.length - 1
+      updateStatus()
+    }
 
     val nurikabeButton = makeButton("To Nurikabe", (event) => {
       decorator = SolidDecorator
       updateBoundsDecoration()
-      pcmSeq :+= new PositionContentMap()
-      currentPCMIndex = pcmSeq.length - 1
-      updateStatus()
+      addPCM()
     })
-    wrapper.appendChild(nurikabeButton)
+    modal.appendChild(nurikabeButton)
     val slitherlinkButton = makeButton("To Slitherlink", (event) => {
       decorator = DotDecorator
       updateBoundsDecoration()
-      pcmSeq :+= new PositionContentMap()
-      currentPCMIndex = pcmSeq.length - 1
-      updateStatus()
+      addPCM()
     })
-    wrapper.appendChild(slitherlinkButton)
+    modal.appendChild(slitherlinkButton)
     println("appended")
+
+    val modalBg = document.getElementById("modal-bg").asInstanceOf[html.Element]
+    document.getElementById("status-right").appendChild(makeButton("\u2191", (event) => {
+      modalBg.style.display = "block"
+    }))
+    modal.appendChild(makeButton("Close", (event) => {
+      modalBg.style.display = "none"
+    }))
+
+    command.onkeydown = (event) => {
+      if (event.key == "Enter") {
+        event.preventDefault()
+        command.value match {
+          case "clear" => clearCurrent()
+          case "clearall" => clearAll()
+          case "newlayer" => addPCM()
+          case e => Out.error("Unrecognized command: " ++ e)
+          // TODO: present error in user-friendly way
+        }
+        command.value = ""
+        masterSVG.focus()
+      }
+    }
+    command.onblur = (event) => {
+      command.value = ""
+      masterSVG.focus()
+    }
 
     masterSVG.onClick((event) => {
       val (x, y) = masterSVG.userSpaceCoords(event)
       cursor.selected = Some(grid.computePosition(x, y))
       ensureLockAndUpdate()
     })
+    updateStatus()
   }
 }

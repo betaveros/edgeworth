@@ -51,6 +51,23 @@
 				position: fixed;
 				transform: translate(-50%, -50%);
 			}
+			#status-bar {
+				display: flex;
+				flex-direction: row;
+				align-items: center;
+				justify-content: space-between;
+			}
+			#modal-bg {
+				display: none;
+				position: fixed;
+				top: 0; bottom: 0; left: 0; right: 0;
+				background-color: rgba(0, 0, 0, 0.5);
+			}
+			#modal-body {
+				margin: 1em;
+				padding: 1em;
+				background-color: #eee;
+			}
 		</style>
 	</head>
 	<body>
@@ -67,6 +84,16 @@
 			</defs>
 		</svg>
 		</div>
+		<div id="status-bar">
+			<input id="command" type="text" />
+			<div id="status-right">
+				<span id="status-span"></span>
+			</div>
+		</div>
+		</div>
+		<div id="modal-bg">
+			<div id="modal-body">
+			</div>
 		</div>
 		<script type="text/javascript" src="./target/scala-2.12/edgeworth-fastopt.js"></script>
 	</body>
