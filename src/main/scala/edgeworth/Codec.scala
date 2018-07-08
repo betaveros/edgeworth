@@ -35,7 +35,11 @@ class ContentCollection[T](var contents: Seq[T], var length: Int, backup: Option
   def apply(index: Int): T = contents.lift(index).getOrElse(backup.get(index))
 }
 
+case class CodecState(gridDecorator: GridDecorator, gridBounds: GridBounds, pcms: Seq[PositionContentMap])
+
 object Codec {
+  val EMPTY_STATE = CodecState(SolidDecorator, GridBounds(10, 10), Seq(new PositionContentMap()))
+
   def decreasingFrequencyCollect[T](iter: Iterable[T]): Seq[T] = {
     var m = HashMap[T, Int]()
     for (t <- iter) {
@@ -81,54 +85,58 @@ object Codec {
     ret.toString
   }
   def optWrap(p: String, e: String, s: String) = if (s == "") "" else p ++ s ++ e
-  def encode(gridDecorator: GridDecorator, gridBounds: GridBounds, pcm: PositionContentMap): String = {
+  def encode(state: CodecState): String = {
+    val gridDecorator = state.gridDecorator
+    val gridBounds = state.gridBounds
+    val pcms = state.pcms
     val prefix = s"${gridBounds.rowCount}x${gridBounds.colCount}."
     val decoratorEncoded = if (gridDecorator == GridDecorator.default) {
       ""
     } else {
       "d" ++ GridDecorator.encode(gridDecorator)
     }
-    val ccSeq = decreasingFrequencyCollect(pcm.cellMap.values)
-    val ccEncoded = optWrap("c", ".", ccSeq.map(CellContent.encode(_)).mkString(""))
-    val encodedCells = {
-      var last = CellPosition(0, 0)
-      val entries = pcm.cellMap.toSeq.sortBy(_._1.asInstanceOf[Position])
-      val pairs: Iterable[(Int, Int)] = for ((pos, cont) <- entries) yield {
-        val dist = gridBounds.cellDistance(last, pos)
-        last = gridBounds.skipped(pos, 1).asInstanceOf[CellPosition]
-        (dist, ccSeq.indexOf(cont))
+    val encodedData = (for (pcm <- pcms) yield {
+      val ccSeq = decreasingFrequencyCollect(pcm.cellMap.values)
+      val ccEncoded = optWrap("c", ".", ccSeq.map(CellContent.encode(_)).mkString(""))
+      val encodedCells = {
+        var last = CellPosition(0, 0)
+        val entries = pcm.cellMap.toSeq.sortBy(_._1.asInstanceOf[Position])
+        val pairs: Iterable[(Int, Int)] = for ((pos, cont) <- entries) yield {
+          val dist = gridBounds.cellDistance(last, pos)
+          last = gridBounds.skipped(pos, 1).asInstanceOf[CellPosition]
+          (dist, ccSeq.indexOf(cont))
+        }
+        optWrap(Base64.intToChar(0).toString, "", encodePart(ccSeq.length, pairs))
       }
-      optWrap(Base64.intToChar(0).toString, "", encodePart(ccSeq.length, pairs))
-    }
 
-    val ecSeq = decreasingFrequencyCollect(pcm.edgeMap.values)
-    val ecEncoded = optWrap("e", ".", ecSeq.map(EdgeContent.encode(_)).mkString(""))
-    val encodedEdges = (for ((ori, startInst) <- Seq((Horizontal, 1), (Vertical, 2))) yield {
-      var last = EdgePosition(0, 0, ori)
-      val entries = pcm.edgeMap.toSeq.filter(_._1.orientation == ori).sortBy(_._1.asInstanceOf[Position])
-      val pairs: Iterable[(Int, Int)] = for ((pos, cont) <- entries) yield {
-        val dist = gridBounds.edgeDistance(last, pos)
-        last = gridBounds.skipped(pos, 1).asInstanceOf[EdgePosition]
-        (dist, ecSeq.indexOf(cont))
+      val ecSeq = decreasingFrequencyCollect(pcm.edgeMap.values)
+      val ecEncoded = optWrap("e", ".", ecSeq.map(EdgeContent.encode(_)).mkString(""))
+      val encodedEdges = (for ((ori, startInst) <- Seq((Horizontal, 1), (Vertical, 2))) yield {
+        var last = EdgePosition(0, 0, ori)
+        val entries = pcm.edgeMap.toSeq.filter(_._1.orientation == ori).sortBy(_._1.asInstanceOf[Position])
+        val pairs: Iterable[(Int, Int)] = for ((pos, cont) <- entries) yield {
+          val dist = gridBounds.edgeDistance(last, pos)
+          last = gridBounds.skipped(pos, 1).asInstanceOf[EdgePosition]
+          (dist, ecSeq.indexOf(cont))
+        }
+        optWrap(Base64.intToChar(startInst).toString, "", encodePart(ecSeq.length, pairs))
+      }).mkString("")
+
+      val icSeq = decreasingFrequencyCollect(pcm.intersectionMap.values)
+      val icEncoded = optWrap("i", ".", icSeq.map(IntersectionContent.encode(_)).mkString(""))
+      val encodedIntersections = {
+        var last = IntersectionPosition(0, 0)
+        val entries = pcm.intersectionMap.toSeq.sortBy(_._1.asInstanceOf[Position])
+        val pairs: Iterable[(Int, Int)] = for ((pos, cont) <- entries) yield {
+          val dist = gridBounds.intersectionDistance(last, pos)
+          last = gridBounds.skipped(pos, 1).asInstanceOf[IntersectionPosition]
+          (dist, icSeq.indexOf(cont))
+        }
+        optWrap(Base64.intToChar(3).toString, "", encodePart(icSeq.length, pairs))
       }
-      optWrap(Base64.intToChar(startInst).toString, "", encodePart(ecSeq.length, pairs))
-    }).mkString("")
-
-    val icSeq = decreasingFrequencyCollect(pcm.intersectionMap.values)
-    val icEncoded = optWrap("i", ".", icSeq.map(IntersectionContent.encode(_)).mkString(""))
-    val encodedIntersections = {
-      var last = IntersectionPosition(0, 0)
-      val entries = pcm.intersectionMap.toSeq.sortBy(_._1.asInstanceOf[Position])
-      val pairs: Iterable[(Int, Int)] = for ((pos, cont) <- entries) yield {
-        val dist = gridBounds.intersectionDistance(last, pos)
-        last = gridBounds.skipped(pos, 1).asInstanceOf[IntersectionPosition]
-        (dist, icSeq.indexOf(cont))
-      }
-      optWrap(Base64.intToChar(3).toString, "", encodePart(icSeq.length, pairs))
-    }
-
-    Seq(prefix, decoratorEncoded, ccEncoded, ecEncoded, icEncoded,
-      encodedCells, encodedEdges, encodedIntersections).mkString("")
+      Seq(ccEncoded, ecEncoded, icEncoded, encodedCells, encodedEdges, encodedIntersections).mkString("")
+    }).mkString(".")
+    Seq(prefix, decoratorEncoded, encodedData).mkString("")
   }
   def untilNone[T](f: () => Option[T]): Seq[T] = {
     val ret = js.Array[T]()
@@ -138,11 +146,11 @@ object Codec {
     }
     throw new AssertionError("??? untilNone")
   }
-  def decode(origText: String): (GridDecorator, GridBounds, PositionContentMap) = {
+  def decode(origText: String): CodecState = {
     var s = new StringIter(origText)
     var gridDecorator: GridDecorator = SolidDecorator
     var gridBounds: GridBounds = GridBounds(10, 10)
-    var map = new PositionContentMap()
+    var pcms = Seq[PositionContentMap]()
     var cellContents = new ContentCollection[CellContent](Seq(CellContent.default), 1, Some((i: Int) => CellContent(Color.pencil, TextCellStamp(i.toString))))
     var edgeContents = new ContentCollection[EdgeContent](Seq(EdgeContent.default), 1, None)
     var intersectionContents = new ContentCollection[IntersectionContent](Seq(IntersectionContent.default), 1, None)
@@ -209,6 +217,7 @@ object Codec {
         Out.log("Done decoding decorator")
       }
       case 'A' | 'B' | 'C' | 'D' => {
+        var map = new PositionContentMap()
         s.back()
         Out.log("Starting VM")
         var position: Position = CellPosition(0, 0)
@@ -290,9 +299,10 @@ object Codec {
           ch = s.next()
         }
         Out.log("ending VM")
+        pcms :+= map
       }
       case c => Out.warn("unrecognized thing " ++ c.toString)
     }
-    (gridDecorator, gridBounds, map)
+    CodecState(gridDecorator, gridBounds, pcms)
   }
 }

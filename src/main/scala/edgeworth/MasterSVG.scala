@@ -28,7 +28,7 @@ class MasterSVG(val svgElement: svg.SVG) {
   // svgElt.width.baseVal.value = 300.0
   // svgElt.height.baseVal.value = 500.0
 
-  val cellContentG = newG()
+  val cellWrapper = newG()
 
   val decorationG = newG()
 
@@ -68,23 +68,46 @@ class MasterSVG(val svgElement: svg.SVG) {
     }
   }
 
-  val edgeContentG = newG()
-  val intersectionContentG = newG()
+  val edgeWrapper = newG()
+  val intersectionWrapper = newG()
 
-  var gmap: Map[Position, svg.G] = Map[Position, svg.G]()
+  var sublayerMap: Map[Int, (svg.G, svg.G, svg.G)] = Map()
+  var gmap: Map[Int, Map[Position, svg.G]] = Map()
 
-  def clearAllGs(): Unit = for (g <- gmap.values) SVGUtil.clear(g)
-  def getClearG(pos: Position) = gmap get pos match {
-    case Some(g) => SVGUtil.clear(g)
-    case None => {
-      val g = SVGUtil.g()
-      gmap += pos -> g
-      (pos match {
-        case _: CellPosition => cellContentG
-        case _: EdgePosition => edgeContentG
-        case _: IntersectionPosition => intersectionContentG
-      }).appendChild(g)
-      g
+  def clearGs(z: Int): Unit = for (submap <- gmap.get(z); g <- submap.values) SVGUtil.clear(g)
+  def clearAllGs(): Unit = for (submap <- gmap.values; g <- submap.values) SVGUtil.clear(g)
+
+  def getSublayerG(z: Int, pos: Position) = {
+    val (cg, eg, ig) = sublayerMap get z match {
+      case Some(g3s) => g3s
+      case None => {
+        val cgg = SVGUtil.g()
+        cellWrapper.appendChild(cgg)
+        val egg = SVGUtil.g()
+        edgeWrapper.appendChild(egg)
+        val igg = SVGUtil.g()
+        intersectionWrapper.appendChild(igg)
+        val g3s = (cgg, egg, igg)
+        sublayerMap += z -> g3s
+        g3s
+      }
+    }
+    pos match {
+      case _: CellPosition => cg
+      case _: EdgePosition => eg
+      case _: IntersectionPosition => ig
+    }
+  }
+  def getClearG(z: Int, pos: Position) = {
+    val res = for (gzmap <- gmap get z; g <- gzmap get pos) yield g
+    res match {
+      case Some(g) => SVGUtil.clear(g)
+      case None => {
+        val g = SVGUtil.g()
+        gmap += z -> (gmap.getOrElse(z, Map()) + (pos -> g))
+        getSublayerG(z, pos).appendChild(g)
+        g
+      }
     }
   }
 

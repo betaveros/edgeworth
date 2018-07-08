@@ -42,4 +42,13 @@ class Cursor(initselected: Option[Position] = None) {
     selected = selected map
       {_.deltaPosition(verticalDelta, horizontalDelta)}
   }
+  def shortStatus: String = {
+    selected match {
+      case Some(CellPosition(row, col)) => s"R${row+1}C${col+1}"
+      case Some(EdgePosition(row, col, Horizontal)) => s"R${row}-${row+1}C${col+1}"
+      case Some(EdgePosition(row, col, Vertical)) => s"R${row+1}C${col}-${col+1}"
+      case Some(IntersectionPosition(row, col)) => s"R${row}-${row+1}C${col}-${col+1}"
+      case None => ""
+    }
+  }
 }

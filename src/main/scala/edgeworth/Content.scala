@@ -21,6 +21,7 @@ case class IntersectionContent(color: Color, stamp: IntersectionStamp) {
 
 object CellContent {
   def default = CellContent(Color.pencil, FillCellStamp)
+  def text(s: String) = CellContent(Color.pencil, TextCellStamp(s))
   def encode(c: CellContent): String = Color.encode(c.color) ++ CellStamp.encode(c.stamp)
   def decode(s: StringIter): Option[CellContent] = {
     val color = Color.decode(s).getOrElse(Color.pencil)

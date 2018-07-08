@@ -12,21 +12,30 @@ object Main {
     val masterSVG = new MasterSVG(document.getElementById("svge").asInstanceOf[svg.SVG])
 
     val cursor = new Cursor(Some(CellPosition(0, 0)))
-    val cursorElt = SVGUtil.path()
+    val cursorElt = SVGUtil.cursor()
     cursorElt.setAttribute("d", cursor.computePath(grid))
-    cursorElt.style.fill = "transparent"
-    cursorElt.style.stroke = "url(#cursor-gradient)"
-    cursorElt.style.strokeWidth = "6"
-    cursorElt.style.strokeLinejoin = "round"
-    cursorElt.style.strokeOpacity = "0.75"
     masterSVG.append(cursorElt)
+
+    val statusSpan = document.createElement("span")
+    statusSpan.textContent = "Hello!"
 
     var lockFunction: Position => Position = identity[Position]
     var lockMultiplier: Int = 1
 
+    var decorator: GridDecorator = SolidDecorator
+    var gridBounds: GridBounds = new GridBounds(10, 10)
+    var pcmSeq: Seq[PositionContentMap] = Seq(new PositionContentMap())
+    var currentPCMIndex = 0
+
+    def currentZ = currentPCMIndex
+    def currentPCM = pcmSeq(currentPCMIndex)
+    def updateStatus() {
+      statusSpan.textContent = s"${cursor.shortStatus} Layer ${currentPCMIndex + 1}/${pcmSeq.length}"
+    }
     def ensureLockAndUpdate() {
       cursor.selected = cursor.selected map lockFunction
       cursorElt.setAttribute("d", cursor.computePath(grid))
+      updateStatus()
     }
     def setLockFunctionMultiplier(f: Position => Position, m: Int) = {
       lockFunction = f
@@ -42,31 +51,29 @@ object Main {
       move(rd * lockMultiplier, cd * lockMultiplier)
     }
 
-    var decorator: GridDecorator = SolidDecorator
-    var gridBounds: GridBounds = new GridBounds(10, 10)
-    var pcm: PositionContentMap = new PositionContentMap()
-    def putElements(pos: Position, elts: Seq[svg.Element]) = {
-      val g = masterSVG.getClearG(pos)
+    def putElements(z: Int, pos: Position, elts: Seq[svg.Element]) = {
+      val g = masterSVG.getClearG(z, pos)
       for (e <- elts) { g.appendChild(e) }
     }
-    def clearCellContent(cpos: CellPosition) = putElements(cpos, Seq())
-    def clearEdgeContent(epos: EdgePosition) = putElements(epos, Seq())
-    def clearIntersectionContent(ipos: IntersectionPosition) = putElements(ipos, Seq())
+    def clearCellContent(cpos: CellPosition) = putElements(currentZ, cpos, Seq())
+    def clearEdgeContent(epos: EdgePosition) = putElements(currentZ, epos, Seq())
+    def clearIntersectionContent(ipos: IntersectionPosition) = putElements(currentZ, ipos, Seq())
     def clearAll(): Unit = {
-      pcm.clear()
+      pcmSeq foreach { _.clear() }
       masterSVG.clearAllGs()
+      updateStatus()
     }
     def putCellContent(cpos: CellPosition, cc: CellContent) = {
-      pcm.putCellContent(cpos, cc)
-      putElements(cpos, cc.render(grid, cpos))
+      currentPCM.putCellContent(cpos, cc)
+      putElements(currentZ, cpos, cc.render(grid, cpos))
     }
     def putEdgeContent(epos: EdgePosition, ec: EdgeContent) = {
-      pcm.putEdgeContent(epos, ec)
-      putElements(epos, ec.render(grid, epos))
+      currentPCM.putEdgeContent(epos, ec)
+      putElements(currentZ, epos, ec.render(grid, epos))
     }
     def putIntersectionContent(ipos: IntersectionPosition, ic: IntersectionContent) = {
-      pcm.putIntersectionContent(ipos, ic)
-      putElements(ipos, ic.render(grid, ipos))
+      currentPCM.putIntersectionContent(ipos, ic)
+      putElements(currentZ, ipos, ic.render(grid, ipos))
     }
 
     def fillEdge(epos: EdgePosition, color: Color = Color.pencil) = putEdgeContent(epos, EdgeContent(color, NormalEdgeStamp))
@@ -143,6 +150,18 @@ object Main {
         case "H" | "S-Left"  => moveAndDraw(0, -1)
         case "L" | "S-Right" => moveAndDraw(0, 1)
       }
+      val metaReactions: PartialFunction[String, Unit] = (s) => s match {
+        case "[" => {
+          currentPCMIndex -= 1
+          if (currentPCMIndex < 0) currentPCMIndex = pcmSeq.length - 1
+          updateStatus()
+        }
+        case "]" => {
+          currentPCMIndex += 1
+          if (currentPCMIndex >= pcmSeq.length) currentPCMIndex = 0
+          updateStatus()
+        }
+      }
       val basicDrawReactions: PartialFunction[String, Unit] = (s) => s match {
         case " " => cursor.selected match {
           case Some(p: CellPosition) => clearCellContent(p)
@@ -194,8 +213,9 @@ object Main {
           case _ => ()
         }
       }
+      Out.log(event.key)
       // lift returns an Option[T] so that keys outside the partial function won't fail
-      (moveReactions orElse basicDrawReactions orElse (digitMap andThen putTextAtCursor)).lift(event.key)
+      (moveReactions orElse basicDrawReactions orElse metaReactions orElse (digitMap andThen putTextAtCursor)).lift(event.key)
     })
 
     def updateBoundsDecoration(): Unit = {
@@ -206,29 +226,34 @@ object Main {
       masterSVG.setScreenSize(w * scale, h * scale)
       decorator.decorate(masterSVG, grid, gridBounds)
     }
-    def load(dec: GridDecorator, gb: GridBounds, pcm0: PositionContentMap) = {
-      decorator = dec
-      gridBounds = gb
+    def load(state: CodecState) = {
+      decorator = state.gridDecorator
+      gridBounds = state.gridBounds
       clearAll()
-      for ((p, c) <- pcm0.cellMap) {
-        putCellContent(p, c)
-      }
-      for ((p, c) <- pcm0.edgeMap) {
-        putEdgeContent(p, c)
-      }
-      for ((p, c) <- pcm0.intersectionMap) {
-        putIntersectionContent(p, c)
+
+      pcmSeq = Seq()
+      for ((pcm0, i) <- state.pcms.zipWithIndex) {
+        pcmSeq :+= new PositionContentMap()
+        for ((p, c) <- pcm0.cellMap) {
+          putCellContent(p, c)
+        }
+        for ((p, c) <- pcm0.edgeMap) {
+          putEdgeContent(p, c)
+        }
+        for ((p, c) <- pcm0.intersectionMap) {
+          putIntersectionContent(p, c)
+        }
       }
       updateBoundsDecoration()
+      updateStatus()
     }
     val hashStr = document.location.hash
     def loadHashStr(hashStr: String) = {
       if (hashStr.length > 0) {
         // cut off the '#'
-        val (dec, gb0, pcm0) = Codec.decode(hashStr.tail)
-        load(dec, gb0, pcm0)
+        load(Codec.decode(hashStr.tail))
       } else {
-        load(SolidDecorator, GridBounds(10, 10), new PositionContentMap())
+        load(Codec.EMPTY_STATE)
       }
     }
     loadHashStr(document.location.hash)
@@ -247,17 +272,20 @@ object Main {
     val textarea = document.createElement("textarea").asInstanceOf[html.TextArea]
     val clearButton = makeButton("Clear", (event) => clearAll())
     val encodeButton = makeButton("Encode", (event) => {
-      textarea.textContent = Codec.encode(decorator, gridBounds, pcm)
+      textarea.textContent = Codec.encode(CodecState(decorator, gridBounds, pcmSeq))
     })
     val setUrlEncodedButton = makeButton("Set URL to encoded", (event) => {
-      document.location.hash = "#" ++ Codec.encode(decorator, gridBounds, pcm)
+      document.location.hash = "#" ++ Codec.encode(CodecState(decorator, gridBounds, pcmSeq))
     })
     val decodeButton = makeButton("Decode", (event) => {
-      val (dec, gb0, pcm0) = Codec.decode(textarea.value)
-      load(dec, gb0, pcm0)
+      load(Codec.decode(textarea.value))
     })
 
     val wrapper = document.getElementById("wrap")
+
+    val sdiv = document.createElement("div")
+    sdiv.appendChild(statusSpan)
+    wrapper.appendChild(sdiv)
 
     val div = document.createElement("div")
     div.appendChild(clearButton)
@@ -306,6 +334,24 @@ object Main {
       lockdiv.appendChild(lb)
     }
     wrapper.appendChild(lockdiv)
+
+    val nurikabeButton = makeButton("To Nurikabe", (event) => {
+      decorator = SolidDecorator
+      updateBoundsDecoration()
+      pcmSeq :+= new PositionContentMap()
+      currentPCMIndex = pcmSeq.length - 1
+      updateStatus()
+    })
+    wrapper.appendChild(nurikabeButton)
+    val slitherlinkButton = makeButton("To Slitherlink", (event) => {
+      decorator = DotDecorator
+      updateBoundsDecoration()
+      pcmSeq :+= new PositionContentMap()
+      currentPCMIndex = pcmSeq.length - 1
+      updateStatus()
+    })
+    wrapper.appendChild(slitherlinkButton)
+    println("appended")
 
     masterSVG.onClick((event) => {
       val (x, y) = masterSVG.userSpaceCoords(event)

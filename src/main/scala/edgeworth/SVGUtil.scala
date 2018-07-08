@@ -87,4 +87,14 @@ object SVGUtil {
 
     Seq(path1, path2)
   }
+
+  def cursor(): svg.Path = {
+    val ret = SVGUtil.path()
+    ret.style.fill = "transparent"
+    ret.style.stroke = "url(#cursor-gradient)"
+    ret.style.strokeWidth = "6"
+    ret.style.strokeLinejoin = "round"
+    ret.style.strokeOpacity = "0.75"
+    ret
+  }
 }
