@@ -56,9 +56,18 @@ object Main {
       val g = masterSVG.getClearG(z, pos)
       for (e <- elts) { g.appendChild(e) }
     }
-    def clearCellContent(cpos: CellPosition) = putElements(currentZ, cpos, Seq())
-    def clearEdgeContent(epos: EdgePosition) = putElements(currentZ, epos, Seq())
-    def clearIntersectionContent(ipos: IntersectionPosition) = putElements(currentZ, ipos, Seq())
+    def clearCellContent(cpos: CellPosition) = {
+      currentPCM.clearCellContent(cpos)
+      putElements(currentZ, cpos, Seq())
+    }
+    def clearEdgeContent(epos: EdgePosition) = {
+      currentPCM.clearEdgeContent(epos)
+      putElements(currentZ, epos, Seq())
+    }
+    def clearIntersectionContent(ipos: IntersectionPosition) = {
+      currentPCM.clearIntersectionContent(ipos)
+      putElements(currentZ, ipos, Seq())
+    }
     def clearCurrent(): Unit = {
       currentPCM.clear()
       masterSVG.clearGs(currentZ)
@@ -403,11 +412,19 @@ object Main {
       addPCM()
     })
     modal.appendChild(slitherlinkButton)
+
+    val encodedTableWrapper = document.createElement("div")
+    modal.appendChild(encodedTableWrapper)
     println("appended")
 
     val modalBg = document.getElementById("modal-bg").asInstanceOf[html.Element]
     document.getElementById("status-right").appendChild(makeButton("\u2191", (event) => {
       modalBg.style.display = "block"
+
+      if (encodedTableWrapper.lastChild != null) {
+        encodedTableWrapper.removeChild(encodedTableWrapper.lastChild)
+      }
+      encodedTableWrapper.appendChild(HTMLEncoder(CodecState(decorator, gridBounds, pcmSeq)))
     }))
     modal.appendChild(makeButton("Close", (event) => {
       modalBg.style.display = "none"
