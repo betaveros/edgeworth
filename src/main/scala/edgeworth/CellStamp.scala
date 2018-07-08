@@ -38,7 +38,7 @@ case class TextCellStamp(text: String) extends CellStamp {
   def renderCell(grid: SimpleGrid, cpos: CellPosition, color: Color) = {
     val (x, y) = grid.computePositionCenter(cpos)
     val fontSize = (grid.colWidth min grid.rowHeight) * 2.0 / 3.0
-    Seq(SVGUtil.text(x, y, text, fontSize.toString + "pt"))
+    Seq(SVGUtil.text(x, y, text, fontSize.toString + "pt", color.toStyle))
   }
 }
 sealed abstract class ArrowCellStamp(dx: Int, dy: Int) extends CellStamp {

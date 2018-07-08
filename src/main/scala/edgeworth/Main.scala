@@ -25,12 +25,13 @@ object Main {
     var decorator: GridDecorator = SolidDecorator
     var gridBounds: GridBounds = new GridBounds(10, 10)
     var pcmSeq: Seq[PositionContentMap] = Seq(new PositionContentMap())
+    var currentColor = Color.pencil
     var currentPCMIndex = 0
 
     def currentZ = currentPCMIndex
     def currentPCM = pcmSeq(currentPCMIndex)
     def updateStatus() {
-      statusSpan.textContent = s"${cursor.shortStatus} Layer ${currentPCMIndex + 1}/${pcmSeq.length}"
+      statusSpan.textContent = s"${currentColor.toPrettyString} ${cursor.shortStatus} Layer ${currentPCMIndex + 1}/${pcmSeq.length}"
     }
     def ensureLockAndUpdate() {
       cursor.selected = cursor.selected map lockFunction
@@ -81,8 +82,8 @@ object Main {
       putElements(currentZ, ipos, ic.render(grid, ipos))
     }
 
-    def fillEdge(epos: EdgePosition, color: Color = Color.pencil) = putEdgeContent(epos, EdgeContent(color, NormalEdgeStamp))
-    def transverseEdge(epos: EdgePosition) = putEdgeContent(epos, EdgeContent(Color.pencil, TransverseEdgeStamp))
+    def fillEdge(epos: EdgePosition, color: Color = currentColor) = putEdgeContent(epos, EdgeContent(color, NormalEdgeStamp))
+    def transverseEdge(epos: EdgePosition) = putEdgeContent(epos, EdgeContent(currentColor, TransverseEdgeStamp))
 
     def moveAndDraw(rd: Int, cd: Int) = {
       cursor.selected foreach (se => {
@@ -118,7 +119,7 @@ object Main {
       case _    => TextCellStamp(s)
     }
     def putTextAtCursor(s: String) = cursor.selected match {
-      case Some(p@CellPosition(row, col)) => putCellContent(p, CellContent(Color.pencil, textToCellStamp(s)))
+      case Some(p@CellPosition(row, col)) => putCellContent(p, CellContent(currentColor, textToCellStamp(s)))
       case _ => ()
     }
     val digitMap: Map[String, String] = Map((for (i <- 0 to 9) yield i.toString -> i.toString): _*)
@@ -145,109 +146,128 @@ object Main {
 
     val command = document.getElementById("command").asInstanceOf[html.Input]
 
+    var priorKeys = Seq[String]()
+    val moveReactions: PartialFunction[String, Boolean] = (s) => s match {
+      case "k" | "<Up>"    => moveWithMultiplier(-1, 0); true
+      case "j" | "<Down>"  => moveWithMultiplier(1, 0); true
+      case "h" | "<Left>"  => moveWithMultiplier(0, -1); true
+      case "l" | "<Right>" => moveWithMultiplier(0, 1); true
+      case "K" | "<S-Up>"    => moveAndDraw(-1, 0); true
+      case "J" | "<S-Down>"  => moveAndDraw(1, 0); true
+      case "H" | "<S-Left>"  => moveAndDraw(0, -1); true
+      case "L" | "<S-Right>" => moveAndDraw(0, 1); true
+    }
+    val metaReactions: PartialFunction[String, Boolean] = (s) => s match {
+      case ":" => command.focus(); true
+      case "[" => {
+        currentPCMIndex -= 1
+        if (currentPCMIndex < 0) currentPCMIndex = pcmSeq.length - 1
+        updateStatus(); true
+      }
+      case "]" => {
+        currentPCMIndex += 1
+        if (currentPCMIndex >= pcmSeq.length) currentPCMIndex = 0
+        updateStatus(); true
+      }
+    }
+    val basicDrawReactions: PartialFunction[String, Boolean] = (s) => s match {
+      case " " => cursor.selected match {
+        case Some(p: CellPosition) => clearCellContent(p); true
+        case Some(p: EdgePosition) => clearEdgeContent(p); true
+        case Some(p: IntersectionPosition) => clearIntersectionContent(p); true
+        case None => true
+      }
+      case "f" => cursor.selected match {
+        case Some(p: CellPosition) => putCellContent(p, CellContent(currentColor, FillCellStamp)); true
+        case Some(p: EdgePosition) => fillEdge(p); true
+        case Some(p: IntersectionPosition) => putIntersectionContent(p, IntersectionContent(currentColor, SquareIntersectionStamp)); true
+        case _ => true
+      }
+      case "r" => cursor.selected match {
+        case Some(p: CellPosition) => putCellContent(p, CellContent(Color.red, FillCellStamp)); true
+        case Some(p: EdgePosition) => fillEdge(p, Color.red); true
+        case Some(p: IntersectionPosition) => putIntersectionContent(p, IntersectionContent(Color.red, SquareIntersectionStamp)); true
+        case _ => true
+      }
+      case "d" | "." => cursor.selected match {
+        case Some(p: CellPosition) => putCellContent(p, CellContent(currentColor, DotCellStamp)); true
+        case Some(p: EdgePosition) => putEdgeContent(p, EdgeContent(currentColor, DotEdgeStamp)); true
+        case Some(p: IntersectionPosition) => putIntersectionContent(p, IntersectionContent(currentColor, DotIntersectionStamp)); true
+        case _ => true
+      }
+      case "o" => cursor.selected match {
+        case Some(p: CellPosition) => putCellContent(p, CellContent(currentColor, CircleCellStamp)); true
+        case Some(p: EdgePosition) => putEdgeContent(p, EdgeContent(currentColor, CircleEdgeStamp)); true
+        case Some(p: IntersectionPosition) => putIntersectionContent(p, IntersectionContent(currentColor, CircleIntersectionStamp)); true
+        case _ => true
+      }
+      case "x" => cursor.selected match {
+        case Some(p: CellPosition) => putCellContent(p, CellContent(currentColor, CrossCellStamp)); true
+        case Some(p: EdgePosition) => putEdgeContent(p, EdgeContent(currentColor, CrossEdgeStamp)); true
+        case Some(p: IntersectionPosition) => putIntersectionContent(p, IntersectionContent(currentColor, CrossIntersectionStamp)); true
+        case _ => true
+      }
+      case "-" => cursor.selected match {
+        case Some(p: CellPosition) => putCellContent(p, CellContent(currentColor, HorizontalLineCellStamp)); true
+        case _ => true
+      }
+      case "|" => cursor.selected match {
+        case Some(p: CellPosition) => putCellContent(p, CellContent(currentColor, VerticalLineCellStamp)); true
+        case _ => true
+      }
+      case "/" => cursor.selected match {
+        case Some(p: CellPosition) => putCellContent(p, CellContent(currentColor, ForwardSlashLineCellStamp)); true
+        case _ => true
+      }
+      case "\\" => cursor.selected match {
+        case Some(p: CellPosition) => putCellContent(p, CellContent(currentColor, BackwardSlashLineCellStamp)); true
+        case _ => true
+      }
+      case "=" => cursor.selected match {
+        case Some(p: CellPosition) => {
+          textInput.style.display = "inline"
+          val (ux, uy) = grid.computePositionCenter(p)
+          val (x, y) = masterSVG.screenSpaceCoords(ux, uy)
+          textInput.style.left = x.toString ++ "px"
+          textInput.style.top = y.toString ++ "px"
+          textInput.value = ""
+          textInput.focus()
+          true
+        }
+        case _ => true
+      }
+      case "c" => false
+      case "ca" => currentColor = Color.azure; updateStatus(); true
+      case "cb" => currentColor = Color.blue; updateStatus(); true
+      case "cc" => currentColor = Color.cyan; updateStatus(); true
+      case "cg" => currentColor = Color.green; updateStatus(); true
+      case "ck" => currentColor = Color.pencil; updateStatus(); true
+      case "cm" => currentColor = Color.magenta; updateStatus(); true
+      case "co" => currentColor = Color.orange; updateStatus(); true
+      case "cr" => currentColor = Color.red; updateStatus(); true
+      case "cv" => currentColor = Color.violet; updateStatus(); true
+      case "cy" => currentColor = Color.yellow; updateStatus(); true
+    }
     masterSVG.onKeyPress((event) => {
       val cPrefix = if (event.ctrlKey) "C-" else ""
       val sPrefix = if (event.shiftKey) "S-" else ""
       val procKey = event.key match {
-        case "ArrowUp"    => cPrefix + sPrefix + "Up"
-        case "ArrowDown"  => cPrefix + sPrefix + "Down"
-        case "ArrowLeft"  => cPrefix + sPrefix + "Left"
-        case "ArrowRight" => cPrefix + sPrefix + "Right"
+        case "ArrowUp"    => s"<${cPrefix}${sPrefix}Up>"
+        case "ArrowDown"  => s"<${cPrefix}${sPrefix}Down>"
+        case "ArrowLeft"  => s"<${cPrefix}${sPrefix}Left>"
+        case "ArrowRight" => s"<${cPrefix}${sPrefix}Right>"
+        case "<" => "<LT>"
+        case ">" => "<GT>"
         case _ => event.key
-      }
-      val moveReactions: PartialFunction[String, Unit] = (s) => s match {
-        case "k" | "Up"    => moveWithMultiplier(-1, 0)
-        case "j" | "Down"  => moveWithMultiplier(1, 0)
-        case "h" | "Left"  => moveWithMultiplier(0, -1)
-        case "l" | "Right" => moveWithMultiplier(0, 1)
-        case "K" | "S-Up"    => moveAndDraw(-1, 0)
-        case "J" | "S-Down"  => moveAndDraw(1, 0)
-        case "H" | "S-Left"  => moveAndDraw(0, -1)
-        case "L" | "S-Right" => moveAndDraw(0, 1)
-      }
-      val metaReactions: PartialFunction[String, Unit] = (s) => s match {
-        case ":" => command.focus()
-        case "[" => {
-          currentPCMIndex -= 1
-          if (currentPCMIndex < 0) currentPCMIndex = pcmSeq.length - 1
-          updateStatus()
-        }
-        case "]" => {
-          currentPCMIndex += 1
-          if (currentPCMIndex >= pcmSeq.length) currentPCMIndex = 0
-          updateStatus()
-        }
-      }
-      val basicDrawReactions: PartialFunction[String, Unit] = (s) => s match {
-        case " " => cursor.selected match {
-          case Some(p: CellPosition) => clearCellContent(p)
-          case Some(p: EdgePosition) => clearEdgeContent(p)
-          case Some(p: IntersectionPosition) => clearIntersectionContent(p)
-          case None => ()
-        }
-        case "f" => cursor.selected match {
-          case Some(p: CellPosition) => putCellContent(p, CellContent(Color.pencil, FillCellStamp))
-          case Some(p: EdgePosition) => fillEdge(p)
-          case Some(p: IntersectionPosition) => putIntersectionContent(p, IntersectionContent(Color.pencil, SquareIntersectionStamp))
-          case _ => ()
-        }
-        case "r" => cursor.selected match {
-          case Some(p: CellPosition) => putCellContent(p, CellContent(Color.red, FillCellStamp))
-          case Some(p: EdgePosition) => fillEdge(p, Color.red)
-          case Some(p: IntersectionPosition) => putIntersectionContent(p, IntersectionContent(Color.red, SquareIntersectionStamp))
-          case _ => ()
-        }
-        case "d" | "." => cursor.selected match {
-          case Some(p: CellPosition) => putCellContent(p, CellContent(Color.pencil, DotCellStamp))
-          case Some(p: EdgePosition) => putEdgeContent(p, EdgeContent(Color.pencil, DotEdgeStamp))
-          case Some(p: IntersectionPosition) => putIntersectionContent(p, IntersectionContent(Color.pencil, DotIntersectionStamp))
-          case _ => ()
-        }
-        case "o" => cursor.selected match {
-          case Some(p: CellPosition) => putCellContent(p, CellContent(Color.pencil, CircleCellStamp))
-          case Some(p: EdgePosition) => putEdgeContent(p, EdgeContent(Color.pencil, CircleEdgeStamp))
-          case Some(p: IntersectionPosition) => putIntersectionContent(p, IntersectionContent(Color.pencil, CircleIntersectionStamp))
-          case _ => ()
-        }
-        case "x" => cursor.selected match {
-          case Some(p: CellPosition) => putCellContent(p, CellContent(Color.pencil, CrossCellStamp))
-          case Some(p: EdgePosition) => putEdgeContent(p, EdgeContent(Color.pencil, CrossEdgeStamp))
-          case Some(p: IntersectionPosition) => putIntersectionContent(p, IntersectionContent(Color.pencil, CrossIntersectionStamp))
-          case _ => ()
-        }
-        case "-" => cursor.selected match {
-          case Some(p: CellPosition) => putCellContent(p, CellContent(Color.pencil, HorizontalLineCellStamp))
-          case _ => ()
-        }
-        case "|" => cursor.selected match {
-          case Some(p: CellPosition) => putCellContent(p, CellContent(Color.pencil, VerticalLineCellStamp))
-          case _ => ()
-        }
-        case "/" => cursor.selected match {
-          case Some(p: CellPosition) => putCellContent(p, CellContent(Color.pencil, ForwardSlashLineCellStamp))
-          case _ => ()
-        }
-        case "\\" => cursor.selected match {
-          case Some(p: CellPosition) => putCellContent(p, CellContent(Color.pencil, BackwardSlashLineCellStamp))
-          case _ => ()
-        }
-        case "=" => cursor.selected match {
-          case Some(p: CellPosition) => {
-            textInput.style.display = "inline"
-            val (ux, uy) = grid.computePositionCenter(p)
-            val (x, y) = masterSVG.screenSpaceCoords(ux, uy)
-            textInput.style.left = x.toString ++ "px"
-            textInput.style.top = y.toString ++ "px"
-            textInput.value = ""
-            textInput.focus()
-          }
-          case _ => ()
-        }
       }
       Out.log(event.key)
       // lift returns an Option[T] so that keys outside the partial function won't fail
-      (moveReactions orElse basicDrawReactions orElse metaReactions orElse (digitMap andThen putTextAtCursor)).lift(event.key) match {
-        case Some(()) => event.preventDefault()
+      val allKeys = priorKeys :+ event.key
+      (moveReactions orElse basicDrawReactions orElse metaReactions orElse (digitMap andThen putTextAtCursor andThen ((_: Unit) => true))).lift(allKeys.mkString) match {
+        case Some(done) => {
+          event.preventDefault()
+          priorKeys = if (done) Seq() else allKeys
+        }
         case None => ()
       }
     })

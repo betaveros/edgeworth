@@ -48,9 +48,10 @@ object SVGUtil {
     r.style.opacity = opacity
     r
   }
-  def text(x: Double, y: Double, content: String, fontSize: String): svg.Text = {
+  def text(x: Double, y: Double, content: String, fontSize: String, fillStyle: String = "#111"): svg.Text = {
     val t = create("text").asInstanceOf[svg.Text]
     t.textContent = content
+    t.style.fill = fillStyle
     t.style.fontSize = fontSize
     t.style.fontFamily = "Arial"
     t.style.textAnchor = "middle"
