@@ -19,8 +19,7 @@ object Main {
     val statusSpan = document.getElementById("status-span")
     statusSpan.textContent = "Hello!"
 
-    var lockFunction: Position => Position = identity[Position]
-    var lockMultiplier: Int = 1
+    var lockMode: LockMode = NoLock
 
     var decorator: GridDecorator = SolidDecorator
     var gridBounds: GridBounds = new GridBounds(10, 10)
@@ -34,13 +33,12 @@ object Main {
       statusSpan.textContent = s"${currentColor.toPrettyString} ${cursor.shortStatus} Layer ${currentPCMIndex + 1}/${pcmSeq.length}"
     }
     def ensureLockAndUpdate() {
-      cursor.selected = cursor.selected map lockFunction
+      cursor.selected = cursor.selected map { lockMode(_) }
       cursorElt.setAttribute("d", cursor.computePath(grid))
       updateStatus()
     }
-    def setLockFunctionMultiplier(f: Position => Position, m: Int) = {
-      lockFunction = f
-      lockMultiplier = m
+    def setLockMode(m: LockMode) = {
+      lockMode = m
       ensureLockAndUpdate()
     }
 
@@ -49,7 +47,7 @@ object Main {
       ensureLockAndUpdate()
     }
     def moveWithMultiplier(rd: Int, cd: Int) = {
-      move(rd * lockMultiplier, cd * lockMultiplier)
+      move(rd * lockMode.multiplier, cd * lockMode.multiplier)
     }
 
     def putElements(z: Int, pos: Position, elts: Seq[svg.Element]) = {
@@ -379,17 +377,17 @@ object Main {
 
     val lockdiv = document.createElement("div")
     lockdiv.appendChild(document.createTextNode("Lock cursor to:"))
-    val locks: Seq[(String, Position => Position, Int)] = Seq(
-      ("none", identity[Position], 1),
-      ("cells", _.roundToCell, 2),
-      ("intersections", _.roundToIntersection, 2))
-    for ((s, f, m) <- locks) {
+    val locks: Seq[(String, LockMode)] = Seq(
+      ("none", NoLock),
+      ("cells", LockToCells),
+      ("intersections", LockToIntersections))
+    for ((s, m) <- locks) {
       val rb = document.createElement("input").asInstanceOf[html.Input]
       val id = "lock-" ++ s
       rb.setAttribute("type", "radio")
       rb.setAttribute("name", "decoration")
       rb.setAttribute("id", id)
-      rb.onchange = (event) => setLockFunctionMultiplier(f, m)
+      rb.onchange = (event) => setLockMode(m)
       lockdiv.appendChild(rb)
       val lb = document.createElement("label")
       lb.setAttribute("for", id)
@@ -441,6 +439,9 @@ object Main {
           case "clear" => clearCurrent()
           case "clearall" => clearAll()
           case "newlayer" => addPCM()
+          case "lock" => setLockMode(LockToCells)
+          case "ilock" => setLockMode(LockToIntersections)
+          case "unlock" => setLockMode(NoLock)
           case e => Out.error("Unrecognized command: " ++ e)
           // TODO: present error in user-friendly way
         }
