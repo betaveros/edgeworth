@@ -232,6 +232,10 @@ object Main {
         case Some(p: CellPosition) => putCellContent(p, CellContent(currentColor, BackwardSlashLineCellStamp)); true
         case _ => true
       }
+      case "+" => cursor.selected match {
+        case Some(p: CellPosition) => putCellContent(p, CellContent(currentColor, PlusCellStamp)); true
+        case _ => true
+      }
       case "=" => cursor.selected match {
         case Some(p: CellPosition) => {
           textInput.style.display = "inline"
