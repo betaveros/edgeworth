@@ -89,10 +89,7 @@ object CellStamp {
     case  ForwardSlashLineCellStamp => "lf"
     case BackwardSlashLineCellStamp => "lb"
     case              PlusCellStamp => "lp" // not technically a line but close enough
-    case TextCellStamp(s) => TextCodec.directEncode(s) match {
-      case Some(x) => (if (TextCodec.hasSafeHead(x)) "" else "t") ++ x
-      case None => throw new AssertionError("Can't encode arbitrary text yet, sorry!")
-    }
+    case TextCellStamp(s) => TextCodec.encode('t', 'e', s)
   }
   def decode(s: StringIter): Option[CellStamp] = s.next() match {
     case Some('f') => Some(  FillCellStamp)
@@ -129,7 +126,8 @@ object CellStamp {
       }
     }
     case Some('t') => Some(TextCellStamp(TextCodec.directDecode(s)))
-    case Some(c) if TextCodec.upperOrDigit(c) => Some(TextCellStamp(c.toString))
+    case Some('e') => Some(TextCellStamp(TextCodec.indirectDecode(s)))
+    case Some(c) if TextCodec.singleDirectEncodeable(c) => Some(TextCellStamp(c.toString))
     case Some('.') => None
     case Some(c) => {
       Out.warn("Unrecognized character while parsing cell stamp: " ++ c.toString)
