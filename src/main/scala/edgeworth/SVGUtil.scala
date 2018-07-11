@@ -85,6 +85,9 @@ object SVGUtil {
     val path2 = dRoundPath(s"M${cx},${cy}L${cx+dx},${cy+dy}", strokeWidth, stroke)
     Seq(path1, path2)
   }
+  def vee(x0: Double, y0: Double, dx: Double, dy: Double, strokeWidth: Double, stroke: String = "#111"): svg.Path = {
+    dSquarePath(s"M${x0-dy},${y0+dx}L${x0+dx},${y0+dy}L${x0+dy},${y0-dx}", strokeWidth, stroke)
+  }
 
   def cursor(): svg.Path = {
     val ret = SVGUtil.path()

@@ -247,6 +247,14 @@ object Main {
         }
         case _ => true
       }
+      case "<" => cursor.selected match {
+        case Some(p: EdgePosition) => putEdgeContent(p, EdgeContent(currentColor, LessEdgeStamp)); true
+        case _ => true
+      }
+      case ">" => cursor.selected match {
+        case Some(p: EdgePosition) => putEdgeContent(p, EdgeContent(currentColor, GreaterEdgeStamp)); true
+        case _ => true
+      }
       case "c" => false
       case "ca" => currentColor = Color.azure; updateStatus(); true
       case "cb" => currentColor = Color.blue; updateStatus(); true

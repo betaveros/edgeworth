@@ -42,6 +42,18 @@ case object CircleEdgeStamp extends EdgeStamp {
     Seq(SVGUtil.circle(x, y, grid.eighth, "transparent", color.toStyle, 3))
   }
 }
+sealed abstract class InequalityEdgeStamp(mul: Int) extends EdgeStamp {
+  def renderEdge(grid: SimpleGrid, epos: EdgePosition, color: Color) = {
+    val EdgePosition(row, col, ori) = epos
+    val (x, y) = grid.computePositionCenter(epos)
+    val dx = mul * grid.fourth * ori.rowDelta
+    val dy = mul * grid.fourth * ori.colDelta
+    Seq(SVGUtil.vee(x - dx/2, y - dy/2, dx, dy, 3, color.toStyle))
+  }
+}
+case object    LessEdgeStamp extends InequalityEdgeStamp(-1)
+case object GreaterEdgeStamp extends InequalityEdgeStamp( 1)
+
 object EdgeStamp {
   def encode(stamp: EdgeStamp): String = stamp match {
     case NormalEdgeStamp => "f"
@@ -49,6 +61,8 @@ object EdgeStamp {
     case CrossEdgeStamp => "x"
     case DotEdgeStamp => "d"
     case CircleEdgeStamp => "o"
+    case LessEdgeStamp => "l"
+    case GreaterEdgeStamp => "g"
   }
   def decode(s: StringIter): Option[EdgeStamp] = s.next() match {
     case Some('f') => Some(    NormalEdgeStamp)
@@ -56,6 +70,8 @@ object EdgeStamp {
     case Some('x') => Some(     CrossEdgeStamp)
     case Some('d') => Some(       DotEdgeStamp)
     case Some('o') => Some(    CircleEdgeStamp)
+    case Some('l') => Some(      LessEdgeStamp)
+    case Some('g') => Some(   GreaterEdgeStamp)
     case Some('.') => None
     case Some(c) => {
       Out.warn("Unrecognized character while parsing edge stamp: " ++ c.toString)
