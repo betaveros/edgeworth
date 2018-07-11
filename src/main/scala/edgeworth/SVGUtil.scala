@@ -63,17 +63,18 @@ object SVGUtil {
   def path(): svg.Path = {
     create("path").asInstanceOf[svg.Path]
   }
-  def dPath(d: String, strokeWidth: Double, stroke: String, strokeLinecap: String): svg.Path = {
+  def dPath(d: String, fill: String, strokeWidth: Double, stroke: String, strokeLinecap: String): svg.Path = {
     val path = SVGUtil.path()
     path.setAttribute("d", d)
+    path.style.fill = fill
     path.style.stroke = stroke
-    path.style.fill = "transparent"
     path.style.strokeWidth = strokeWidth.toString
     path.style.strokeLinecap = strokeLinecap
     path
   }
-  def dSquarePath(d: String, strokeWidth: Double, stroke: String) = dPath(d, strokeWidth, stroke, "square")
-  def dRoundPath(d: String, strokeWidth: Double, stroke: String) = dPath(d, strokeWidth, stroke, "round")
+  def dSquarePath(d: String, strokeWidth: Double, stroke: String) = dPath(d, "transparent", strokeWidth, stroke, "square")
+  def dRoundPath(d: String, strokeWidth: Double, stroke: String) = dPath(d, "transparent", strokeWidth, stroke, "round")
+  def dFilledPath(d: String, fill: String) = dPath(d, fill, 0, "", "round")
   def x(x1: Double, y1: Double, x2: Double, y2: Double, strokeWidth: Double, stroke: String = "#111"): svg.Path = {
     dSquarePath(s"M${x1},${y1}L${x2},${y2}M${x1},${y2}L${x2},${y1}", strokeWidth, stroke)
   }
@@ -87,6 +88,25 @@ object SVGUtil {
   }
   def vee(x0: Double, y0: Double, dx: Double, dy: Double, strokeWidth: Double, stroke: String = "#111"): svg.Path = {
     dSquarePath(s"M${x0-dy},${y0+dx}L${x0+dx},${y0+dy}L${x0+dy},${y0-dx}", strokeWidth, stroke)
+  }
+
+  def star(cx: Double, cy: Double, scale: Double, fill: String): svg.Path = {
+    val arms = 5
+    val outerRadius = scale
+    val innerRadius = outerRadius * (3 - Math.sqrt(5)) / 2
+    val baseAngle = -Math.PI / 2
+    val incAngle = Math.PI / arms
+    def polarPair(incs: Int, r: Double): (Double, Double) = {
+      val a = baseAngle + incs * incAngle
+      (cx + Math.cos(a) * r, cy + Math.sin(a) * r)
+    }
+
+    val segments = for (i <- 0 until arms) yield {
+      val (ox, oy) = polarPair(2*i, outerRadius)
+      val (ix, iy) = polarPair(2*i + 1, innerRadius)
+      s"${ox},${oy}L${ix},${iy}"
+    }
+    dFilledPath(s"M${segments.mkString("L")}Z", fill)
   }
 
   def cursor(): svg.Path = {

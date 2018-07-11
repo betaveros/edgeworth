@@ -80,6 +80,11 @@ object Main {
       currentPCM.putCellContent(cpos, cc)
       putElements(currentZ, cpos, cc.render(grid, cpos))
     }
+    def mapCellContent(cpos: CellPosition, f: CellStamp => CellStamp) = {
+      currentPCM.cellMap.get(cpos).foreach({ case CellContent(color, stamp) =>
+        putCellContent(cpos, CellContent(color, f(stamp)))
+      })
+    }
     def putEdgeContent(epos: EdgePosition, ec: EdgeContent) = {
       currentPCM.putEdgeContent(epos, ec)
       putElements(currentZ, epos, ec.render(grid, epos))
@@ -191,9 +196,15 @@ object Main {
         case _ => true
       }
       case "r" => cursor.selected match {
-        case Some(p: CellPosition) => putCellContent(p, CellContent(Color.red, FillCellStamp)); true
-        case Some(p: EdgePosition) => fillEdge(p, Color.red); true
-        case Some(p: IntersectionPosition) => putIntersectionContent(p, IntersectionContent(Color.red, SquareIntersectionStamp)); true
+        case Some(p: CellPosition) => mapCellContent(p, CellStamp.rotateClockwise); true
+        case _ => true
+      }
+      case "R" => cursor.selected match {
+        case Some(p: CellPosition) => mapCellContent(p, CellStamp.rotateCounterclockwise); true
+        case _ => true
+      }
+      case "t" => cursor.selected match {
+        case Some(p: CellPosition) => mapCellContent(p, CellStamp.toggleFill); true
         case _ => true
       }
       case "d" | "." => cursor.selected match {
@@ -232,6 +243,10 @@ object Main {
       }
       case "+" => cursor.selected match {
         case Some(p: CellPosition) => putCellContent(p, CellContent(currentColor, PlusCellStamp)); true
+        case _ => true
+      }
+      case "*" => cursor.selected match {
+        case Some(p: CellPosition) => putCellContent(p, CellContent(currentColor, StarCellStamp)); true
         case _ => true
       }
       case "=" => cursor.selected match {

@@ -34,6 +34,18 @@ case object CircleCellStamp extends CellStamp {
     Seq(SVGUtil.circle(x, y, 2.25 * grid.eighth, "transparent", color.toStyle, 3))
   }
 }
+case object DiskCellStamp extends CellStamp {
+  def renderCell(grid: SimpleGrid, cpos: CellPosition, color: Color) = {
+    val (x, y) = grid.computePositionCenter(cpos)
+    Seq(SVGUtil.circle(x, y, 2.25 * grid.eighth, color.toStyle, color.toStyle, 3))
+  }
+}
+case object StarCellStamp extends CellStamp {
+  def renderCell(grid: SimpleGrid, cpos: CellPosition, color: Color) = {
+    val (x, y) = grid.computePositionCenter(cpos)
+    Seq(SVGUtil.star(x, y + grid.eighth / 4, 3 * grid.eighth, color.toStyle))
+  }
+}
 case class TextCellStamp(text: String) extends CellStamp {
   def renderCell(grid: SimpleGrid, cpos: CellPosition, color: Color) = {
     val (x, y) = grid.computePositionCenter(cpos)
@@ -80,10 +92,12 @@ object CellStamp {
     case               DotCellStamp => "d"
     case             CrossCellStamp => "x"
     case            CircleCellStamp => "o"
+    case              DiskCellStamp => "k"
     case           UpArrowCellStamp => "au"
     case         DownArrowCellStamp => "ad"
     case         LeftArrowCellStamp => "al"
     case        RightArrowCellStamp => "ar"
+    case              StarCellStamp => "as"
     case    HorizontalLineCellStamp => "lh"
     case      VerticalLineCellStamp => "lv"
     case  ForwardSlashLineCellStamp => "lf"
@@ -91,11 +105,44 @@ object CellStamp {
     case              PlusCellStamp => "lp" // not technically a line but close enough
     case TextCellStamp(s) => TextCodec.encode('t', 'e', s)
   }
+  def rotateClockwise(stamp: CellStamp): CellStamp = stamp match {
+    case BackwardSlashLineCellStamp => HorizontalLineCellStamp
+    case VerticalLineCellStamp => BackwardSlashLineCellStamp
+    case ForwardSlashLineCellStamp => VerticalLineCellStamp
+    case HorizontalLineCellStamp => ForwardSlashLineCellStamp
+
+    case UpArrowCellStamp => RightArrowCellStamp
+    case RightArrowCellStamp => DownArrowCellStamp
+    case DownArrowCellStamp => LeftArrowCellStamp
+    case LeftArrowCellStamp => UpArrowCellStamp
+
+    case s => s
+  }
+  def rotateCounterclockwise(stamp: CellStamp): CellStamp = stamp match {
+    case HorizontalLineCellStamp => BackwardSlashLineCellStamp
+    case BackwardSlashLineCellStamp => VerticalLineCellStamp
+    case VerticalLineCellStamp => ForwardSlashLineCellStamp
+    case ForwardSlashLineCellStamp => HorizontalLineCellStamp
+
+    case RightArrowCellStamp => UpArrowCellStamp
+    case DownArrowCellStamp => RightArrowCellStamp
+    case LeftArrowCellStamp => DownArrowCellStamp
+    case UpArrowCellStamp => LeftArrowCellStamp
+
+    case s => s
+  }
+  def toggleFill(stamp: CellStamp): CellStamp = stamp match {
+    case DiskCellStamp => CircleCellStamp
+    case CircleCellStamp => DiskCellStamp
+
+    case s => s
+  }
   def decode(s: StringIter): Option[CellStamp] = s.next() match {
     case Some('f') => Some(  FillCellStamp)
     case Some('d') => Some(   DotCellStamp)
     case Some('x') => Some( CrossCellStamp)
     case Some('o') => Some(CircleCellStamp)
+    case Some('k') => Some(  DiskCellStamp)
     case Some('l') => s.next() match {
       case Some('h') => Some(   HorizontalLineCellStamp)
       case Some('v') => Some(     VerticalLineCellStamp)
@@ -116,6 +163,7 @@ object CellStamp {
       case Some('d') => Some( DownArrowCellStamp)
       case Some('l') => Some( LeftArrowCellStamp)
       case Some('r') => Some(RightArrowCellStamp)
+      case Some('s') => Some(      StarCellStamp)
       case Some(c) => {
         Out.warn("Cell stamp: Unrecognized arrow direction: " ++ c.toString)
         None
